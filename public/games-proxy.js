@@ -7,6 +7,8 @@ window.floaterProxyReady=function(){
   const {ScramjetController}=$scramjetLoadController();
   const controller=new ScramjetController({files:{wasm:"/scram/scramjet.wasm.wasm",all:"/scram/scramjet.all.js",sync:"/scram/scramjet.sync.js"}});
   await controller.init();await registerSW();
+  const registration = await navigator.serviceWorker.ready;
+  if (!registration.active) throw Error("Scramjet service worker is not active");
   const connection=new BareMux.BareMuxConnection("/baremux/worker.js");
   await connection.setTransport("/libcurl/index.mjs",[{websocket:"wss://nexus-wisp-worker.lincolnshy62.workers.dev/"}]);
   window.__floaterScramjet=controller;

@@ -1,0 +1,14 @@
+Floater AI V17 - BareMux / Scramjet stabilization test
+
+Changes:
+- Service worker now intercepts ONLY /scramjet/ paths. Previously it called scramjet.loadConfig() and respondWith() for every page request, which could interfere with ordinary site requests and error handling.
+- Scramjet config loading is shared instead of repeated for every fetch.
+- Removed the Promise.race timeout inside the service worker; that timeout did not cancel upstream work and could leave stale pending requests.
+- Games proxy waits for an active service worker before setting Libcurl transport.
+- Service worker update bypasses HTTP cache.
+
+Unchanged: AI, screen capture, PiP creation, visual layout, game search, Wisp URL.
+
+Not verified live. If BareMux still logs invalid MessagePort or the iframe stays white, the remaining issue may be worker-client communication or Wisp TCP forwarding; a WebSocket greeting does not prove outbound TCP works.
+
+After deploying, close Floater PiP and all Floater tabs; clear the site's storage once if the old service worker persists, then reload. Clearing site storage may erase local Floater preferences.
