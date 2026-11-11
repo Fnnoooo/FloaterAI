@@ -1,0 +1,9 @@
+Floater AI Standalone Proxy Test
+
+Deploy this project through your existing GitHub + Netlify build pipeline.
+Open https://YOUR-NETLIFY-DOMAIN/proxy-test.html in a normal Chrome tab.
+Click Test proxy to try https://example.com outside Picture-in-Picture.
+
+If the page remains white, capture the status and log shown on this test page, plus any errors in DevTools Console. This separates the PiP UI from the proxy stack but does not independently validate the Wisp server.
+
+No changes were made to the existing Floater UI, games tab, AI, or screen-sharing code.
