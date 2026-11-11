@@ -1,0 +1,1 @@
+Deploy using the same GitHub+Netlify process as before. Visit https://anothercalculatoramazing.netlify.app/wisp-tcp-test.html and click Test Wisp TCP. Send screenshot of output. Does not alter Floater AI or proxy files.
