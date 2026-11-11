@@ -1,0 +1,12 @@
+Floater AI - Wisp diagnostic build
+
+Your previous tests establish that the Cloudflare Worker upgrades WebSocket connections and sends a Wisp CONTINUE greeting, but the proxied HTTP request stalls. This build does not claim to fix upstream TCP connectivity.
+
+Changes limited to the Games proxy:
+- Scramjet service worker now returns a visible error after 20 seconds instead of waiting indefinitely for an upstream response.
+- Game status reports proxy timeout when detectable.
+- AI, tab capture, Document PiP layout and search are unchanged.
+
+After deploying from GitHub to Netlify, close/reopen Floater and refresh the main page to update its service worker. In Chrome DevTools > Application > Service workers verify new worker activated. Test example.com.
+
+If it reports an upstream timeout, the remaining problem is likely between Libcurl and the Cloudflare Wisp Worker. A WebSocket 101 and initial CONTINUE do not verify that the Worker can establish outbound TCP connections and relay HTTP data.
