@@ -1,53 +1,290 @@
 
-if (type === 3 && id === 0 && !connected) {
-  connected = true;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  const host = new TextEncoder().encode("example.com");
+<title>Wisp TCP Diagnostic</title>
 
-  const connect = new Uint8Array(8 + host.length);
-  connect[0] = 1;
+<style>
+  * {
+    box-sizing: border-box;
+  }
 
-  new DataView(connect.buffer).setUint32(
-    1,
-    streamId,
-    true
-  );
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #11111c;
+    color: #eee;
+    font: 15px system-ui, sans-serif;
+  }
 
-  connect[5] = 1;
+  main {
+    max-width: 850px;
+    margin: auto;
+  }
 
-  new DataView(connect.buffer).setUint16(
-    6,
-    80,
-    true
-  );
+  h2 {
+    color: #c9b5ff;
+  }
 
-  connect.set(host, 8);
+  button {
+    padding: 13px 22px;
+    background: #7255ba;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+  }
 
-  ws.send(connect);
-  log("Sent CONNECT TCP example.com:80");
+  button:disabled {
+    opacity: 0.5;
+  }
 
-  const request = new TextEncoder().encode(
-    "GET / HTTP/1.1\r\n" +
-    "Host: example.com\r\n" +
-    "Connection: close\r\n" +
-    "\r\n"
-  );
+  pre {
+    background: #202033;
+    padding: 18px;
+    border-radius: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-height: 260px;
+    line-height: 1.6;
+  }
 
-  const data = new Uint8Array(5 + request.length);
-  data[0] = 2;
+  p {
+    color: #c4c4d0;
+  }
+</style>
+</head>
 
-  new DataView(data.buffer).setUint32(
-    1,
-    streamId,
-    true
-  );
+<body>
+<main>
+  <h2>Cloudflare Wisp TCP Diagnostic</h2>
 
-  data.set(request, 5);
+  <p>
+    Tests the Wisp WebSocket connection,
+    TCP stream creation, and HTTP response.
+  </p>
 
-  ws.send(data);
+  <button id="go">Test Wisp TCP</button>
 
-  httpSent = true;
+  <pre id="log">Ready.</pre>
+</main>
 
-  log("Sent HTTP GET immediately after CONNECT");
-  return;
+<script>
+const endpoint =
+  "wss://nexus-wisp-worker.lincolnshy62.workers.dev/";
+
+const button = document.getElementById("go");
+const output = document.getElementById("log");
+
+function log(...messages) {
+  output.textContent += "\n" + messages.join(" ");
 }
+
+button.onclick = () => {
+  button.disabled = true;
+  output.textContent = "Connecting to " + endpoint;
+
+  const ws = new WebSocket(endpoint);
+  ws.binaryType = "arraybuffer";
+
+  const streamId = 1;
+
+  let connected = false;
+  let httpSent = false;
+  let response = "";
+  let finished = false;
+
+  const timeout = setTimeout(() => {
+    finish("TIMEOUT after 15 seconds");
+  }, 15000);
+
+  function finish(message) {
+    if (finished) return;
+
+    finished = true;
+    clearTimeout(timeout);
+
+    log("Finished:", message);
+
+    button.disabled = false;
+
+    try {
+      ws.close();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  ws.onopen = () => {
+    log("WebSocket OPEN");
+  };
+
+  ws.onerror = () => {
+    log("WebSocket ERROR");
+  };
+
+  ws.onclose = (event) => {
+    log(
+      "WebSocket CLOSED:",
+      event.code,
+      event.reason
+    );
+
+    if (!finished) {
+      finish("Connection closed before HTTP response");
+    }
+  };
+
+  ws.onmessage = async (event) => {
+    try {
+      const buffer =
+        event.data instanceof ArrayBuffer
+          ? new Uint8Array(event.data)
+          : new Uint8Array(
+              await event.data.arrayBuffer()
+            );
+
+      if (buffer.length < 5) {
+        log("Invalid short packet");
+        return;
+      }
+
+      const type = buffer[0];
+
+      const id = new DataView(
+        buffer.buffer,
+        buffer.byteOffset,
+        buffer.byteLength
+      ).getUint32(1, true);
+
+      log(
+        "Received packet:",
+        "type=" + type,
+        "stream=" + id,
+        "bytes=" + buffer.length
+      );
+
+      // Initial server CONTINUE
+      if (type === 3 && id === 0 && !connected) {
+        connected = true;
+
+        const host =
+          new TextEncoder().encode("example.com");
+
+        // CONNECT packet
+        const connect = new Uint8Array(
+          8 + host.length
+        );
+
+        connect[0] = 1;
+
+        new DataView(connect.buffer).setUint32(
+          1,
+          streamId,
+          true
+        );
+
+        connect[5] = 1;
+
+        new DataView(connect.buffer).setUint16(
+          6,
+          80,
+          true
+        );
+
+        connect.set(host, 8);
+
+        ws.send(connect);
+
+        log("Sent CONNECT TCP example.com:80");
+
+        // HTTP request
+        const request = new TextEncoder().encode(
+          "GET / HTTP/1.1\r\n" +
+          "Host: example.com\r\n" +
+          "Connection: close\r\n" +
+          "User-Agent: WispDiagnostic/1.0\r\n" +
+          "\r\n"
+        );
+
+        // DATA packet
+        const data = new Uint8Array(
+          5 + request.length
+        );
+
+        data[0] = 2;
+
+        new DataView(data.buffer).setUint32(
+          1,
+          streamId,
+          true
+        );
+
+        data.set(request, 5);
+
+        ws.send(data);
+
+        httpSent = true;
+
+        log("Sent HTTP GET immediately after CONNECT");
+
+        return;
+      }
+
+      // Incoming DATA
+      if (type === 2 && id === streamId) {
+        const chunk = new TextDecoder().decode(
+          buffer.slice(5),
+          { stream: true }
+        );
+
+        response += chunk;
+
+        log(
+          "Received HTTP data:",
+          buffer.length - 5,
+          "bytes"
+        );
+
+        if (response.includes("\r\n\r\n")) {
+          log(
+            "HTTP RESPONSE:",
+            response.slice(0, 700)
+          );
+
+          finish("HTTP response headers received!");
+        }
+
+        return;
+      }
+
+      // Flow control
+      if (type === 3 && id === streamId) {
+        log("Received stream CONTINUE");
+        return;
+      }
+
+      // Stream closed
+      if (type === 4 && id === streamId) {
+        log(
+          "Stream CLOSE:",
+          Array.from(buffer.slice(5)).join(",")
+        );
+
+        finish("Wisp stream closed");
+        return;
+      }
+
+    } catch (error) {
+      log("ERROR:", error.message);
+      finish("Packet processing failed");
+    }
+  };
+};
+</script>
+</body>
+</html>
