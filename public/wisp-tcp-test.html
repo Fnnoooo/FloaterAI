@@ -1,19 +1,53 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wisp TCP Diagnostic</title><style>body{font:15px system-ui;background:#11111c;color:#eee;padding:22px;max-width:900px;margin:auto}button{padding:12px 20px;background:#7255ba;color:white;border:0;border-radius:9px;cursor:pointer}pre{background:#202033;padding:16px;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:10px;min-height:250px}p{color:#c4c4d0}</style><h2>Raw Cloudflare Wisp TCP Diagnostic</h2><p>This test bypasses Scramjet, BareMux and Libcurl. It sends a Wisp TCP connect request for example.com:80, then a basic HTTP GET. It does not change your browser settings.</p><button id="go">Test Wisp TCP</button><pre id="log">Ready.</pre><script>
-const endpoint='wss://nexus-wisp-worker.lincolnshy62.workers.dev/';
-const out=document.getElementById('log');const btn=document.getElementById('go');
-const log=(...a)=>{out.textContent+='\n'+a.join(' ');};
-btn.onclick=async()=>{btn.disabled=true;out.textContent='Connecting to '+endpoint;let ws;let timeout;let connected=false;let httpSent=false;let response='';const streamId=1;let finished=false;
-const finish=(why)=>{if(finished)return;finished=true;clearTimeout(timeout);log('Finished:',why);btn.disabled=false;try{ws?.close()}catch{}};
-try{ws=new WebSocket(endpoint);ws.binaryType='arraybuffer';timeout=setTimeout(()=>finish('TIMEOUT after 15 seconds; no complete HTTP response'),15000);
-ws.onopen=()=>log('WebSocket OPEN (handshake only)');
-ws.onerror=()=>log('WebSocket ERROR');
-ws.onclose=e=>{log('WebSocket CLOSED code='+e.code+' reason='+e.reason);if(!finished)finish('WebSocket closed before response')};
-ws.onmessage=async e=>{let buf=e.data instanceof ArrayBuffer?new Uint8Array(e.data):new Uint8Array(await e.data.arrayBuffer());if(buf.length<5){log('Short packet',Array.from(buf).join(','));return;}const type=buf[0];const id=(buf[1]|buf[2]<<8|buf[3]<<16|buf[4]<<24)>>>0;log('Received packet type='+type+' stream='+id+' length='+buf.length+' firstBytes='+Array.from(buf.slice(0,18)).join(','));
-if(type===3&&id===0&&!connected){connected=true;const host=new TextEncoder().encode('example.com');const pkt=new Uint8Array(8+host.length);pkt[0]=1;new DataView(pkt.buffer).setUint32(1,streamId,true);pkt[5]=1;new DataView(pkt.buffer).setUint16(6,80,true);pkt.set(host,8);ws.send(pkt);log('Sent CONNECT TCP example.com:80 (stream 1)');return;}
-if(type===3&&id===streamId&&!httpSent){httpSent=true;const request=new TextEncoder().encode('GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\nUser-Agent: FloaterWispDiagnostic/1.0\r\n\r\n');const pkt=new Uint8Array(5+request.length);pkt[0]=2;new DataView(pkt.buffer).setUint32(1,streamId,true);pkt.set(request,5);ws.send(pkt);log('Sent HTTP GET through Wisp TCP stream');return;}
-if(type===2&&id===streamId){const chunk=new TextDecoder().decode(buf.slice(5));response+=chunk;log('Received HTTP bytes: '+(buf.length-5));if(response.includes('\r\n'))log('HTTP preview: '+response.slice(0,700));if(response.includes('\r\n\r\n'))finish('HTTP response headers received — Wisp TCP data path works');return;}
-if(type===3&&id===streamId){log('Stream CONTINUE received');return;}
-if(type===4&&id===streamId){log('Stream CLOSE received, reason bytes='+Array.from(buf.slice(5)).join(','));finish('Wisp stream closed');return;}
-};}catch(e){log('ERROR',e?.stack||String(e));finish('JavaScript error')}
-};
-</script></html>
+
+if (type === 3 && id === 0 && !connected) {
+  connected = true;
+
+  const host = new TextEncoder().encode("example.com");
+
+  const connect = new Uint8Array(8 + host.length);
+  connect[0] = 1;
+
+  new DataView(connect.buffer).setUint32(
+    1,
+    streamId,
+    true
+  );
+
+  connect[5] = 1;
+
+  new DataView(connect.buffer).setUint16(
+    6,
+    80,
+    true
+  );
+
+  connect.set(host, 8);
+
+  ws.send(connect);
+  log("Sent CONNECT TCP example.com:80");
+
+  const request = new TextEncoder().encode(
+    "GET / HTTP/1.1\r\n" +
+    "Host: example.com\r\n" +
+    "Connection: close\r\n" +
+    "\r\n"
+  );
+
+  const data = new Uint8Array(5 + request.length);
+  data[0] = 2;
+
+  new DataView(data.buffer).setUint32(
+    1,
+    streamId,
+    true
+  );
+
+  data.set(request, 5);
+
+  ws.send(data);
+
+  httpSent = true;
+
+  log("Sent HTTP GET immediately after CONNECT");
+  return;
+}
