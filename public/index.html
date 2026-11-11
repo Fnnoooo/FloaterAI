@@ -15,12 +15,23 @@ async function open(){
   pip=await window.documentPictureInPicture.requestWindow({width:410,height:560});
   let d=pip.document;d.head.innerHTML='<meta name="viewport" content="width=device-width,initial-scale=1"><title>Calculator</title>';
   const st=d.createElement('style');st.textContent=css;d.head.append(st);
-  d.body.innerHTML=`<header><div><b>Learning</b> <small>• floating assistant</small></div><span class="orb"></span></header><div class="tabs"><button id="ai-tab" class="selected">✦ AI</button><button id="games-tab">🎮 Games</button></div><main><div class="games-panel" id="games-panel"><form id="game-search" class="game-search"><input id="game-query" placeholder="Search games by name or URL…"><button>Search</button></form><div id="game-results" class="game-results"></div><div class="game-hint" id="game-hint">Find a game, then select Play. Some games may not support PiP.</div><iframe id="game-view" class="game-view" allow="fullscreen; autoplay; gamepad; pointer-lock" referrerpolicy="no-referrer"></iframe><button id="game-back">← Back to results</button></div><div class="status" id="status">Share a tab to ask questions about it. Screen sharing is optional.</div><div class="controls"><button id="solve" disabled>Solve this page</button><button id="stop" disabled>Stop sharing</button></div><div class="messages" id="messages"><div class="msg">Hi! I can help explain text from a tab you choose to share. Screenshots are captured only when you ask a question.</div></div><form id="ask"><input id="prompt" placeholder="Ask about the shared tab…" autocomplete="off"><button id="send">Ask</button></form></main>`;
+  d.body.innerHTML=`<header><div><b>Learning</b> <small>• floating assistant</small></div><span class="orb"></span></header><div class="tabs"><button id="ai-tab" class="selected">✦ AI</button><button id="games-tab">🎮 Games</button></div><main><div class="games-panel" id="games-panel"><button id="open-game-tab" type="button">↗ Open New Tab</button><form id="game-search" class="game-search"><input id="game-query" placeholder="Search games by name or URL…"><button>Search</button></form><div id="game-results" class="game-results"></div><div class="game-hint" id="game-hint">Find a game, then select Play. Some games may not support PiP.</div><iframe id="game-view" class="game-view" allow="fullscreen; autoplay; gamepad; pointer-lock" referrerpolicy="no-referrer"></iframe><button id="game-back">← Back to results</button></div><div class="status" id="status">Share a tab to ask questions about it. Screen sharing is optional.</div><div class="controls"><button id="solve" disabled>Solve this page</button><button id="stop" disabled>Stop sharing</button></div><div class="messages" id="messages"><div class="msg">Hi! I can help explain text from a tab you choose to share. Screenshots are captured only when you ask a question.</div></div><form id="ask"><input id="prompt" placeholder="Ask about the shared tab…" autocomplete="off"><button id="send">Ask</button></form></main>`;
   const $=id=>d.getElementById(id),status=t=>$('status').textContent=t,add=(t,who='ai')=>{let el=d.createElement('div');el.className='msg '+who;el.textContent=t;$('messages').append(el);$('messages').scrollTop=$('messages').scrollHeight;return el;};
   const gamePanel=$('games-panel');
   const aiElements=['status','solve','stop','messages','ask'];
   function selectTab(which){const games=which==='games';gamePanel.classList.toggle('visible',games);for(const id of aiElements){const el=$(id);if(el)el.style.display=games?'none':'';}$('ai-tab').classList.toggle('selected',!games);$('games-tab').classList.toggle('selected',games);}
   $('ai-tab').onclick=()=>selectTab('ai');$('games-tab').onclick=()=>selectTab('games');
+  $('open-game-tab').onclick=()=>{
+    // Synchronous popup creation from the user click keeps the tab at about:blank.
+    const tab=window.open('about:blank','_blank');
+    if(!tab){$('game-hint').textContent='Chrome blocked the new tab. Allow popups for this site and retry.';return;}
+    const target=new URL('/games-browser.html',window.location.href).href;
+    tab.document.open();
+    tab.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Games</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#090a10"><iframe title="Games Proxy" style="display:block;width:100vw;height:100vh;border:0" allow="fullscreen;autoplay;gamepad;pointer-lock" src="'+target.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'"></iframe></body></html>');
+    tab.document.close();
+    tab.focus();
+  };
+
   let gameResults=[];
   const gameStatus=t=>$('game-hint').textContent=t;
   const gameList=()=>{const el=$('game-results');el.replaceChildren();gameResults.forEach(item=>{const b=d.createElement('button');b.type='button';b.textContent='▶ '+item.title+' — '+new URL(item.url).hostname;b.onclick=()=>playGame(item.url);el.append(b);});};
