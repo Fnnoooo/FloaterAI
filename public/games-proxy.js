@@ -5,7 +5,7 @@ window.floaterProxyReady=function(){
  readyPromise=(async()=>{
   if(typeof $scramjetLoadController!=="function"||typeof BareMux==="undefined")throw Error("Proxy assets not loaded. Deploy the Node project, not just public/.");
   const {ScramjetController}=$scramjetLoadController();
-  const controller=new ScramjetController({files:{wasm:"/scram/scramjet.wasm.wasm",all:"/scram/scramjet.all.js",sync:"/scram/scramjet.sync.js"}});
+  const controller=new ScramjetController({prefix:"/scramjet/",files:{wasm:"/scram/scramjet.wasm.wasm",all:"/scram/scramjet.all.js",sync:"/scram/scramjet.sync.js"}});
   await controller.init();await registerSW();
   const registration = await navigator.serviceWorker.ready;
   if (!registration.active) throw Error("Scramjet service worker is not active");
